@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Attendance Summary</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #10b981;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background-color: #f9fafb;
+            padding: 20px;
+            border-radius: 0 0 8px 8px;
+        }
+        .overview {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .subject-summary {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .subject-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .subject-name {
+            font-weight: 600;
+            color: #374151;
+        }
+        .attendance-rate {
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .rate-high {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .rate-medium {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        .rate-low {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            font-size: 14px;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 8px;
+            background-color: #f3f4f6;
+            border-radius: 4px;
+        }
+        .stat-value {
+            font-weight: 600;
+            color: #374151;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📅 Daily Attendance Summary</h1>
+        <p>{{date}}</p>
+    </div>
+    
+    <div class="content">
+        <div class="overview">
+            <h2>📊 Daily Overview</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value">{{totalSubjects}}</div>
+                    <div>Subjects</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{totalStudents}}</div>
+                    <div>Students</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{overallAttendance}}%</div>
+                    <div>Overall Rate</div>
+                </div>
+            </div>
+        </div>
+
+        <h3>📚 Subject-wise Summary</h3>
+        {{#each subjects}}
+        <div class="subject-summary">
+            <div class="subject-header">
+                <span class="subject-name">{{name}} ({{code}})</span>
+                <span class="attendance-rate rate-{{rateClass}}">{{attendanceRate}}%</span>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value">{{presentCount}}</div>
+                    <div>Present</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{absentCount}}</div>
+                    <div>Absent</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{totalStudents}}</div>
+                    <div>Total</div>
+                </div>
+            </div>
+        </div>
+        {{/each}}
+
+        <div class="footer">
+            <p>This summary was generated automatically by the Attendance Management System.</p>
+            <p>Generated on: {{generatedAt}}</p>
+        </div>
+    </div>
+</body>
+</html> 

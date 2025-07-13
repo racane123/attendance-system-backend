@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Confirmation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #007bff;
+            margin: 0;
+            font-size: 28px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .student-info {
+            background-color: #f8f9fa;
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .attendance-details {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .status-present {
+            color: #28a745;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+            font-size: 14px;
+        }
+        .highlight {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 Attendance Confirmation</h1>
+            <p>Your attendance has been recorded successfully</p>
+        </div>
+
+        <div class="content">
+            <p>Dear <strong>{{studentName}}</strong>,</p>
+            
+            <p>This email confirms that your attendance has been successfully recorded for today's class.</p>
+
+            <div class="student-info">
+                <h3>Student Information</h3>
+                <p><strong>Student ID:</strong> {{studentId}}</p>
+                <p><strong>Name:</strong> {{studentName}}</p>
+                <p><strong>Section:</strong> {{section}}</p>
+                <p><strong>Email:</strong> {{studentEmail}}</p>
+            </div>
+
+            <div class="attendance-details">
+                <h3>Attendance Details</h3>
+                <p><strong>Subject:</strong> {{subjectName}} ({{subjectCode}})</p>
+                <p><strong>Date:</strong> {{date}}</p>
+                <p><strong>Time:</strong> {{time}}</p>
+                <p><strong>Status:</strong> <span class="status-present">✓ Present</span></p>
+            </div>
+
+            <div class="highlight">
+                <p><strong>Important:</strong> Please keep this email as proof of your attendance. If you believe there's an error, please contact your instructor immediately.</p>
+            </div>
+
+            <p>Thank you for attending class today!</p>
+        </div>
+
+        <div class="footer">
+            <p>This is an automated message from the Attendance Management System</p>
+            <p>Generated on: {{generatedAt}}</p>
+            <p>If you have any questions, please contact your instructor or the system administrator.</p>
+        </div>
+    </div>
+</body>
+</html> 

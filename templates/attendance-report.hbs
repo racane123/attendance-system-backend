@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #3b82f6;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background-color: #f9fafb;
+            padding: 20px;
+            border-radius: 0 0 8px 8px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #3b82f6;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+        .attendance-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .attendance-table th,
+        .attendance-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .attendance-table th {
+            background-color: #f3f4f6;
+            font-weight: 600;
+        }
+        .status-present {
+            color: #059669;
+            font-weight: 600;
+        }
+        .status-absent {
+            color: #dc2626;
+            font-weight: 600;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Attendance Report</h1>
+        <p>{{subjectName}} - {{date}}</p>
+    </div>
+    
+    <div class="content">
+        <h2>Summary</h2>
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number">{{totalStudents}}</div>
+                <div class="stat-label">Total Students</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{presentCount}}</div>
+                <div class="stat-label">Present</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{absentCount}}</div>
+                <div class="stat-label">Absent</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{attendancePercentage}}%</div>
+                <div class="stat-label">Attendance Rate</div>
+            </div>
+        </div>
+
+        <h3>Detailed Attendance</h3>
+        <table class="attendance-table">
+            <thead>
+                <tr>
+                    <th>Student ID</th>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each attendanceRecords}}
+                <tr>
+                    <td>{{student_id}}</td>
+                    <td>{{student_name}}</td>
+                    <td class="status-{{status}}">{{status}}</td>
+                    <td>{{time_in}}</td>
+                </tr>
+                {{/each}}
+            </tbody>
+        </table>
+
+        <div class="footer">
+            <p>This report was generated automatically by the Attendance Management System.</p>
+            <p>Generated on: {{generatedAt}}</p>
+        </div>
+    </div>
+</body>
+</html> 

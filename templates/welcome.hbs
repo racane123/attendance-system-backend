@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Attendance System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #10b981;
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background-color: #f9fafb;
+            padding: 30px;
+            border-radius: 0 0 8px 8px;
+        }
+        .welcome-box {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .feature-list {
+            background: #f0f9ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .feature-list ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .feature-list li {
+            margin: 10px 0;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: #3b82f6;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎉 Welcome to Attendance Management System!</h1>
+        <p>Hello {{name}}, we're excited to have you on board!</p>
+    </div>
+    
+    <div class="content">
+        <div class="welcome-box">
+            <h2>Welcome {{name}}!</h2>
+            <p>Thank you for joining our Attendance Management System. You now have access to a powerful tool designed to streamline attendance tracking and reporting.</p>
+            
+            <div class="feature-list">
+                <h3>🚀 What you can do:</h3>
+                <ul>
+                    <li><strong>QR Code Scanning:</strong> Quickly scan student QR codes for attendance</li>
+                    <li><strong>Subject Management:</strong> Organize attendance by different subjects</li>
+                    <li><strong>Detailed Reports:</strong> Generate comprehensive attendance reports</li>
+                    <li><strong>Email Notifications:</strong> Receive automated attendance summaries</li>
+                    <li><strong>Real-time Tracking:</strong> Monitor attendance in real-time</li>
+                </ul>
+            </div>
+
+            <p><strong>Your Role:</strong> {{role}}</p>
+            <p><strong>Username:</strong> {{username}}</p>
+            
+            <a href="{{loginUrl}}" class="cta-button">Login to Your Account</a>
+        </div>
+
+        <div class="footer">
+            <p>If you have any questions, please don't hesitate to contact our support team.</p>
+            <p>Welcome aboard! 🎓</p>
+        </div>
+    </div>
+</body>
+</html> 
