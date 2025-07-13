@@ -36,7 +36,8 @@ app.use(cors({
       /^https:\/\/.*\.ngrok\.app$/,
       'https://e586-136-158-39-55.ngrok-free.app',
       'https://caa9-136-158-39-55.ngrok-free.app',
-      'https://687425591349dd0008e4a0b7--visionary-salmiakki-588f3d.netlify.app/'
+      'https://687425591349dd0008e4a0b7--visionary-salmiakki-588f3d.netlify.app/',
+      'https://attendance-system-frontend-lake.vercel.app/'
     ];
     
     const isAllowed = allowedOrigins.some(allowedOrigin => {
