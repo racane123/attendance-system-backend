@@ -8,7 +8,7 @@ let pool;
 
 // Check if DATABASE_URL is provided (Supabase format)
 if (process.env.DATABASE_URL) {
-  //console.log(`Connecting to Supabase database...${process.env.DATABASE_URL}`);
+  console.log(`Connecting to Supabase database...${process.env.DATABASE_URL}`);
   // Use the connection string directly
   pool = new Pool({
     connectionString: process.env.DATABASE_URL,
