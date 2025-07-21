@@ -11,12 +11,13 @@ import authRouter from "./router/auth.js";
 import emailRouter from "./router/email.js";
 import emailManagementRouter from "./router/emailManagement.js";
 import enrollmentRouter from "./router/enrollment.js";
+import libraryRouter from "./router/library.js";
 
 dotenv.config();
 
 const app = express();
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Trust proxy for ngrok compatibility
 app.set('trust proxy', 1);
@@ -31,6 +32,7 @@ app.use(cors({
     const allowedOrigins = [
       'http://localhost:3000',
       'https://localhost:3000',
+      'htpp://localhost:5173',
       /^https:\/\/.*\.ngrok\.io$/,
       /^https:\/\/.*\.ngrok-free\.app$/,
       /^https:\/\/.*\.ngrok\.app$/,
@@ -66,6 +68,7 @@ app.use('/api/subjects', subjectRouter);
 app.use('/api/email', emailRouter);
 app.use('/api/email-management', emailManagementRouter);
 app.use('/api/enrollments', enrollmentRouter);
+app.use('/api/library', libraryRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
