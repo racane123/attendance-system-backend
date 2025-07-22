@@ -1,6 +1,7 @@
 import express from 'express';
 import pool from '../database/db.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { sendReservationNotification } from '../services/emailService.js';
 
 const router = express.Router();
 
@@ -12,6 +13,8 @@ const handleError = (res, error, message = 'Database error') => {
 
 // Helper function to check if user is librarian or admin
 const requireLibrarian = (req, res, next) => {
+
+  //console.log(req.user.role)
   if (req.user.role !== 'librarian' && req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Access denied. Librarian privileges required.' });
   }
@@ -152,10 +155,11 @@ router.get('/borrowings', authenticateToken, async (req, res) => {
     
     const query = `
       SELECT 
-        b.*,
+        b.id, b.borrowed_at, b.returned_at, b.due_date, b.status,
         bk.title, bk.author, bk.isbn, bk.cover_image_url,
         bc.copy_number,
-        u.username as user_name
+        u.username as user_name,
+        u.id as user_id 
       FROM borrowings b
       JOIN book_copies bc ON b.book_copy_id = bc.id
       JOIN books bk ON bc.book_id = bk.id
@@ -307,6 +311,92 @@ router.post('/return', authenticateToken, async (req, res) => {
     handleError(res, error, 'Failed to return book');
   }
 });
+
+// ==================== RESERVATION ROUTES (USER) ====================
+
+// Create a reservation
+router.post('/reservations', authenticateToken, async (req, res) => {
+  try {
+    const { bookId } = req.body;
+    const userId = req.user.id;
+
+    // Get the library user ID
+    const libraryUserQuery = 'SELECT id FROM library_users WHERE user_id = $1';
+    const libraryUserResult = await pool.query(libraryUserQuery, [userId]);
+    if (libraryUserResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Library user not found' });
+    }
+    const libraryUserId = libraryUserResult.rows[0].id;
+
+    // Check if the book is available
+    const bookQuery = 'SELECT available_copies FROM books WHERE id = $1';
+    const bookResult = await pool.query(bookQuery, [bookId]);
+    if (bookResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Book not found' });
+    }
+    if (bookResult.rows[0].available_copies > 0) {
+      return res.status(400).json({ error: 'Cannot reserve a book that is currently available' });
+    }
+
+    // Check for existing active reservation
+    const existingReservationQuery = `
+      SELECT id FROM reservations 
+      WHERE user_id = $1 AND book_id = $2 AND status = 'active'
+    `;
+    const existingReservation = await pool.query(existingReservationQuery, [libraryUserId, bookId]);
+    if (existingReservation.rows.length > 0) {
+      return res.status(400).json({ error: 'You already have an active reservation for this book' });
+    }
+
+    // Create the reservation
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // Reservation expires in 7 days if not fulfilled
+
+    const insertQuery = `
+      INSERT INTO reservations (user_id, book_id, expires_at) 
+      VALUES ($1, $2, $3) 
+      RETURNING *
+    `;
+    const result = await pool.query(insertQuery, [libraryUserId, bookId, expiresAt]);
+
+    res.status(201).json({
+      message: 'Book reserved successfully',
+      data: result.rows[0],
+    });
+  } catch (error) {
+    handleError(res, error, 'Failed to create reservation');
+  }
+});
+
+// Get the current user's reservations
+router.get('/reservations', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const libraryUserQuery = 'SELECT id FROM library_users WHERE user_id = $1';
+    const libraryUserResult = await pool.query(libraryUserQuery, [userId]);
+    if (libraryUserResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Library user not found' });
+    }
+    const libraryUserId = libraryUserResult.rows[0].id;
+
+    const query = `
+      SELECT
+        r.id, r.status, r.reserved_at, r.expires_at,
+        b.id as book_id, b.title, b.author, b.cover_image_url
+      FROM reservations r
+      JOIN books b ON r.book_id = b.id
+      WHERE r.user_id = $1
+      ORDER BY r.reserved_at DESC
+    `;
+    const result = await pool.query(query, [libraryUserId]);
+
+    res.json({ data: result.rows });
+  } catch (error) {
+    handleError(res, error, 'Failed to fetch user reservations');
+  }
+});
+
 
 // ==================== ADMIN ROUTES ====================
 
@@ -530,5 +620,273 @@ router.get('/admin/stats', authenticateToken, requireLibrarian, async (req, res)
     handleError(res, error, 'Failed to fetch statistics');
   }
 });
+
+// Get a specific user's borrowing history (Admin/Librarian only)
+router.get('/admin/borrowings/:userId', authenticateToken, requireLibrarian, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // First, get the library_user_id from the main user_id
+    const libraryUserQuery = 'SELECT id FROM library_users WHERE user_id = $1';
+    const libraryUserResult = await pool.query(libraryUserQuery, [userId]);
+
+    if (libraryUserResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Library user not found' });
+    }
+    const libraryUserId = libraryUserResult.rows[0].id;
+
+    const query = `
+      SELECT 
+        b.id,
+        b.borrowed_at,
+        b.returned_at,
+        bk.title as book_title
+      FROM borrowings b
+      JOIN book_copies bc ON b.book_copy_id = bc.id
+      JOIN books bk ON bc.book_id = bk.id
+      WHERE b.user_id = $1
+      ORDER BY b.borrowed_at DESC
+    `;
+
+    const result = await pool.query(query, [libraryUserId]);
+    res.json({ data: result.rows });
+  } catch (error) {
+    handleError(res, error, "Failed to fetch user's borrowing history");
+  }
+});
+
+// ==================== RESERVATION ROUTES (ADMIN) ====================
+
+// Get all active reservations
+router.get('/admin/reservations', authenticateToken, requireLibrarian, async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        r.id,
+        r.reserved_at,
+        r.expires_at,
+        r.status,
+        b.title as book_title,
+        u.username as user_name,
+        u.email as user_email
+      FROM reservations r
+      JOIN books b ON r.book_id = b.id
+      JOIN library_users lu ON r.user_id = lu.id
+      JOIN users u ON lu.user_id = u.id
+      WHERE r.status = 'active'
+      ORDER BY r.reserved_at ASC
+    `;
+    const result = await pool.query(query);
+    res.json({ data: result.rows });
+  } catch (error) {
+    handleError(res, error, 'Failed to fetch reservations');
+  }
+});
+
+// Fulfill a reservation
+router.post('/admin/reservations/:id/fulfill', authenticateToken, requireLibrarian, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get reservation details to find user email and book title
+    const reservationQuery = `
+      SELECT r.*, u.email, u.username, b.title 
+      FROM reservations r
+      JOIN library_users lu ON r.user_id = lu.id
+      JOIN users u ON lu.user_id = u.id
+      JOIN books b ON r.book_id = b.id
+      WHERE r.id = $1 AND r.status = 'active'
+    `;
+    const reservationResult = await pool.query(reservationQuery, [id]);
+
+    if (reservationResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Active reservation not found' });
+    }
+
+    const reservation = reservationResult.rows[0];
+
+    // Update the reservation status
+    const updateQuery = `
+      UPDATE reservations 
+      SET status = 'fulfilled', expires_at = NOW() + INTERVAL '3 day'
+      WHERE id = $1 
+      RETURNING *
+    `;
+    const updatedResult = await pool.query(updateQuery, [id]);
+
+    // Trigger an email notification to the user
+    await sendReservationNotification(
+      reservation.email,
+      {
+        userName: reservation.username,
+        bookTitle: reservation.title,
+        reservationId: reservation.id,
+      },
+      req.user.id 
+    );
+
+    res.json({
+      message: 'Reservation fulfilled and notification sent.',
+      data: updatedResult.rows[0],
+    });
+  } catch (error) {
+    handleError(res, error, 'Failed to fulfill reservation');
+  }
+});
+
+// Admin: Issue a book to a user
+router.post('/admin/issue', authenticateToken, requireLibrarian, async (req, res) => {
+  try {
+
+    
+    const { userId, bookId } = req.body;
+
+    // Find an available copy of the book
+    const copyQuery = `
+      SELECT id FROM book_copies
+      WHERE book_id = $1 AND status = 'available'
+      LIMIT 1
+    `;
+    const copyResult = await pool.query(copyQuery, [bookId]);
+
+    if (copyResult.rows.length === 0) {
+      return res.status(400).json({ error: 'No available copies of this book.' });
+    }
+    const copyId = copyResult.rows[0].id;
+
+    // Get library user ID from the main user ID
+    const libraryUserQuery = 'SELECT id FROM library_users WHERE user_id = $1';
+    const libraryUserResult = await pool.query(libraryUserQuery, [userId]);
+    if (libraryUserResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Library user not found.' });
+    }
+    const libraryUserId = libraryUserResult.rows[0].id;
+
+    // Create borrowing record
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 14); // 2 weeks loan
+
+    const borrowQuery = `
+      INSERT INTO borrowings (user_id, book_copy_id, due_date)
+      VALUES ($1, $2, $3)
+      RETURNING *
+    `;
+    const borrowResult = await pool.query(borrowQuery, [libraryUserId, copyId, dueDate]);
+
+    // Update book copy status to 'borrowed'
+    await pool.query('UPDATE book_copies SET status = \'borrowed\' WHERE id = $1', [copyId]);
+
+    res.status(201).json({
+      message: 'Book issued successfully',
+      borrowing: borrowResult.rows[0]
+    });
+
+  } catch (error) {
+    handleError(res, error, 'Failed to issue book');
+  }
+});
+
+// Admin: Search for active borrowings
+router.get('/admin/borrowings/search', authenticateToken, requireLibrarian, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) {
+      return res.json([]);
+    }
+
+    const query = `
+      SELECT
+        b.id as borrowing_id,
+        bk.title,
+        u.username
+      FROM borrowings b
+      JOIN book_copies bc ON b.book_copy_id = bc.id
+      JOIN books bk ON bc.book_id = bk.id
+      JOIN library_users lu ON b.user_id = lu.id
+      JOIN users u ON lu.user_id = u.id
+      WHERE b.status = 'borrowed' AND (bk.title ILIKE $1 OR bk.isbn = $1 OR u.username ILIKE $1)
+      LIMIT 10
+    `;
+    const result = await pool.query(query, [`%${q}%`]);
+    res.json(result.rows);
+  } catch (error) {
+    handleError(res, error, 'Failed to search borrowings');
+  }
+});
+
+// Admin: Return a book
+router.post('/admin/return', authenticateToken, requireLibrarian, async (req, res) => {
+  try {
+    const { borrowingId } = req.body;
+
+    // Get borrowing details
+    const borrowingQuery = 'SELECT * FROM borrowings WHERE id = $1';
+    const borrowingResult = await pool.query(borrowingQuery, [borrowingId]);
+
+    if (borrowingResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Borrowing record not found.' });
+    }
+    const borrowing = borrowingResult.rows[0];
+
+    if (borrowing.status === 'returned') {
+      return res.status(400).json({ error: 'This book has already been returned.' });
+    }
+
+    // Update borrowing record
+    const updateBorrowingQuery = `
+      UPDATE borrowings
+      SET status = 'returned', returned_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+    `;
+    await pool.query(updateBorrowingQuery, [borrowingId]);
+
+    // Update book copy status
+    const updateCopyQuery = `
+      UPDATE book_copies
+      SET status = 'available'
+      WHERE id = $1
+    `;
+    await pool.query(updateCopyQuery, [borrowing.book_copy_id]);
+    
+    // TODO: Calculate and apply fines if overdue
+
+    res.json({ message: 'Book returned successfully.' });
+
+  } catch (error) {
+    handleError(res, error, 'Failed to return book');
+  }
+});
+
+// Admin: Renew a book
+router.post('/admin/borrowings/:id/renew', authenticateToken, requireLibrarian, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const borrowingQuery = 'SELECT * FROM borrowings WHERE id = $1';
+    const borrowingResult = await pool.query(borrowingQuery, [id]);
+
+    if (borrowingResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Borrowing record not found.' });
+    }
+    const borrowing = borrowingResult.rows[0];
+
+    if (borrowing.status !== 'borrowed') {
+      return res.status(400).json({ error: 'This book is not currently borrowed.' });
+    }
+
+    // Extend due date by 14 days
+    const newDueDate = new Date(borrowing.due_date);
+    newDueDate.setDate(newDueDate.getDate() + 14);
+
+    const updateQuery = 'UPDATE borrowings SET due_date = $1 WHERE id = $2';
+    await pool.query(updateQuery, [newDueDate, id]);
+
+    res.json({ message: 'Book renewed successfully.', newDueDate });
+
+  } catch (error) {
+    handleError(res, error, 'Failed to renew book');
+  }
+});
+
 
 export default router; 

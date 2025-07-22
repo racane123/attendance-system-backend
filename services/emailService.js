@@ -276,6 +276,56 @@ export const sendStudentAttendanceEmail = async (studentEmail, attendanceData, s
   }
 };
 
+// Send reservation notification email
+export const sendReservationNotification = async (recipientEmail, notificationData, sentBy = null) => {
+  try {
+    const template = loadTemplate('reservation-notification');
+    const html = template(notificationData);
+
+    const mailOptions = {
+      from: `"School Library" <${emailConfig.auth.user}>`,
+      to: recipientEmail,
+      subject: `Your Reserved Book is Available: ${notificationData.bookTitle}`,
+      html: html,
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('Reservation notification email sent:', result.messageId);
+
+    await trackEmailHistory({
+      recipient_email: recipientEmail,
+      email_type: 'reservation_notification',
+      subject: mailOptions.subject,
+      message_id: result.messageId,
+      sent_by: sentBy,
+      metadata: { 
+        reservation_id: notificationData.reservationId, 
+        book_title: notificationData.bookTitle 
+      },
+    });
+
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error('Error sending reservation notification email:', error);
+
+    await trackEmailHistory({
+      recipient_email: recipientEmail,
+      email_type: 'reservation_notification',
+      subject: `Your Reserved Book is Available: ${notificationData.bookTitle}`,
+      status: 'failed',
+      sent_by: sentBy,
+      metadata: { 
+        reservation_id: notificationData.reservationId, 
+        book_title: notificationData.bookTitle,
+        error: error.message 
+      },
+    });
+
+    return { success: false, error: error.message };
+  }
+};
+
+
 // Test email configuration
 export const testEmailConfig = async () => {
   try {

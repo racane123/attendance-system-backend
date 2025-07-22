@@ -19,18 +19,23 @@ const loginLimiter = process.env.NODE_ENV === 'production' ? rateLimit({
 
 // Register new user (admin only)
 router.post('/register', authenticateToken, requireRole(['admin']), async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { username, email, password, role = 'teacher' } = req.body;
+    await client.query('BEGIN');
+    const { username, email, password, role = 'teacher', name } = req.body;
 
+    console.log('Registration input:', { username, email, password, role, name });
     // Validate input
-    if (!username || !email || !password) {
+    if (!username || !email || !password || !name) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ 
         success: false,
-        error: 'Username, email, and password are required' 
+        error: 'Username, name, email, and password are required' 
       });
     }
 
     if (password.length < 6) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ 
         success: false,
         error: 'Password must be at least 6 characters long' 
@@ -38,7 +43,8 @@ router.post('/register', authenticateToken, requireRole(['admin']), async (req, 
     }
 
     // Validate role
-    if (!['admin', 'teacher', 'viewer'].includes(role)) {
+    if (!['admin', 'teacher', 'viewer', 'librarian', 'student'].includes(role)) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ 
         success: false,
         error: 'Invalid role. Must be admin, teacher, or viewer' 
@@ -46,12 +52,13 @@ router.post('/register', authenticateToken, requireRole(['admin']), async (req, 
     }
 
     // Check if user already exists
-    const existingUser = await pool.query(
+    const existingUser = await client.query(
       'SELECT * FROM users WHERE username = $1 OR email = $2',
       [username, email]
     );
 
     if (existingUser.rows.length > 0) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ 
         success: false,
         error: 'Username or email already exists' 
@@ -62,13 +69,24 @@ router.post('/register', authenticateToken, requireRole(['admin']), async (req, 
     const hashedPassword = await hashPassword(password);
 
     // Insert new user
-    const result = await pool.query(
-      'INSERT INTO users (username, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, username, email, role, created_at',
-      [username, email, hashedPassword, role]
+    const result = await client.query(
+      'INSERT INTO users (username, email, password_hash, role, name) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, email, role, created_at, name',
+      [username, email, hashedPassword, role, name]
     );
 
     const user = result.rows[0];
 
+    // If the user is a student or teacher, create a library_user entry
+    if (role === 'student' || role === 'teacher') {
+      const libraryCardNumber = `LIB-${Date.now()}-${user.id}`;
+      await client.query(
+        `INSERT INTO library_users (user_id, email, role, library_card_number)
+         VALUES ($1, $2, $3, $4)` ,
+        [user.id, email, role, libraryCardNumber]
+      );
+    }
+
+    await client.query('COMMIT');
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
@@ -76,6 +94,7 @@ router.post('/register', authenticateToken, requireRole(['admin']), async (req, 
         user: {
           id: user.id,
           username: user.username,
+          name: user.name,
           email: user.email,
           role: user.role,
           created_at: user.created_at
@@ -83,11 +102,18 @@ router.post('/register', authenticateToken, requireRole(['admin']), async (req, 
       }
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Registration error:', error);
+    if (error.stack) {
+      console.error('Error stack:', error.stack);
+    }
     res.status(500).json({ 
       success: false,
-      error: 'Internal server error' 
+      error: error.message || 'Internal server error',
+      details: error.stack || null
     });
+  } finally {
+    client.release();
   }
 });
 
@@ -263,11 +289,20 @@ router.put('/change-password', authenticateToken, async (req, res) => {
 });
 
 // Get all users (admin only)
-router.get('/users', authenticateToken, requireRole(['admin']), async (req, res) => {
+router.get('/users', authenticateToken, requireRole(['admin', 'librarian']), async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC'
-    );
+    const { search } = req.query;
+    let query = 'SELECT id, username, email, role, created_at FROM users';
+    const params = [];
+
+    if (search) {
+      query += ' WHERE username ILIKE $1 OR email ILIKE $1';
+      params.push(`%${search}%`);
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const result = await pool.query(query, params);
 
     res.json({
       success: true,

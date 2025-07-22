@@ -28,6 +28,13 @@ if (process.env.DATABASE_URL) {
   });
 }
 
+// Add an error listener to the pool
+pool.on('error', (err, client) => {
+  console.error('Unexpected error on idle client', err);
+  // You might want to decide whether to close the client or let the pool handle it.
+  // For now, we'll just log it. In a production environment, you might need more robust handling.
+});
+
 export default pool;
 
 // Debug: Print all users and their roles
