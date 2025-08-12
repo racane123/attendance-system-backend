@@ -621,37 +621,33 @@ router.get('/admin/stats', authenticateToken, requireLibrarian, async (req, res)
   }
 });
 
-// Get a specific user's borrowing history (Admin/Librarian only)
-router.get('/admin/borrowings/:userId', authenticateToken, requireLibrarian, async (req, res) => {
+
+
+// Admin: Search for active borrowings
+router.get('/admin/borrowings/search', authenticateToken, requireLibrarian, async (req, res) => {
   try {
-    const { userId } = req.params;
-
-    // First, get the library_user_id from the main user_id
-    const libraryUserQuery = 'SELECT id FROM library_users WHERE user_id = $1';
-    const libraryUserResult = await pool.query(libraryUserQuery, [userId]);
-
-    if (libraryUserResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Library user not found' });
+    const { q } = req.query;
+    if (!q) {
+      return res.json([]);
     }
-    const libraryUserId = libraryUserResult.rows[0].id;
 
     const query = `
-      SELECT 
-        b.id,
-        b.borrowed_at,
-        b.returned_at,
-        bk.title as book_title
+      SELECT
+        b.id as borrowing_id,
+        bk.title,
+        u.username
       FROM borrowings b
       JOIN book_copies bc ON b.book_copy_id = bc.id
       JOIN books bk ON bc.book_id = bk.id
-      WHERE b.user_id = $1
-      ORDER BY b.borrowed_at DESC
+      JOIN library_users lu ON b.user_id = lu.id
+      JOIN users u ON lu.user_id = u.id
+      WHERE b.status = 'borrowed' AND (bk.title ILIKE $1 OR bk.isbn = $1 OR u.username ILIKE $1)
+      LIMIT 10
     `;
-
-    const result = await pool.query(query, [libraryUserId]);
-    res.json({ data: result.rows });
+    const result = await pool.query(query, [`%${q}%`]);
+    res.json(result.rows);
   } catch (error) {
-    handleError(res, error, "Failed to fetch user's borrowing history");
+    handleError(res, error, 'Failed to search borrowings');
   }
 });
 
@@ -734,6 +730,7 @@ router.post('/admin/reservations/:id/fulfill', authenticateToken, requireLibrari
   }
 });
 
+
 // Admin: Issue a book to a user
 router.post('/admin/issue', authenticateToken, requireLibrarian, async (req, res) => {
   try {
@@ -786,31 +783,37 @@ router.post('/admin/issue', authenticateToken, requireLibrarian, async (req, res
   }
 });
 
-// Admin: Search for active borrowings
-router.get('/admin/borrowings/search', authenticateToken, requireLibrarian, async (req, res) => {
+// Get a specific user's borrowing history (Admin/Librarian only)
+router.get('/admin/borrowings/:userId', authenticateToken, requireLibrarian, async (req, res) => {
   try {
-    const { q } = req.query;
-    if (!q) {
-      return res.json([]);
+    const { userId } = req.params;
+
+    // First, get the library_user_id from the main user_id
+    const libraryUserQuery = 'SELECT id FROM library_users WHERE user_id = $1';
+    const libraryUserResult = await pool.query(libraryUserQuery, [userId]);
+
+    if (libraryUserResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Library user not found' });
     }
+    const libraryUserId = libraryUserResult.rows[0].id;
 
     const query = `
-      SELECT
-        b.id as borrowing_id,
-        bk.title,
-        u.username
+      SELECT 
+        b.id,
+        b.borrowed_at,
+        b.returned_at,
+        bk.title as book_title
       FROM borrowings b
       JOIN book_copies bc ON b.book_copy_id = bc.id
       JOIN books bk ON bc.book_id = bk.id
-      JOIN library_users lu ON b.user_id = lu.id
-      JOIN users u ON lu.user_id = u.id
-      WHERE b.status = 'borrowed' AND (bk.title ILIKE $1 OR bk.isbn = $1 OR u.username ILIKE $1)
-      LIMIT 10
+      WHERE b.user_id = $1
+      ORDER BY b.borrowed_at DESC
     `;
-    const result = await pool.query(query, [`%${q}%`]);
-    res.json(result.rows);
+
+    const result = await pool.query(query, [libraryUserId]);
+    res.json({ data: result.rows });
   } catch (error) {
-    handleError(res, error, 'Failed to search borrowings');
+    handleError(res, error, "Failed to fetch user's borrowing history");
   }
 });
 
