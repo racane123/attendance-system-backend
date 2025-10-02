@@ -6,7 +6,7 @@ import { authenticateToken, requireRole } from "../middleware/auth.js";
 const studentRouter = express.Router();
 
 // Get all students
-studentRouter.get("/", authenticateToken, requireRole(['admin', 'teacher', 'viewer']), async (req, res) => {
+studentRouter.get("/", async (req, res) => {
     try {
         const result = await pool.query(
             "SELECT * FROM students ORDER BY created_at DESC"
