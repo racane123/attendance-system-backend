@@ -734,10 +734,7 @@ router.post('/admin/reservations/:id/fulfill', authenticateToken, requireLibrari
 // Admin: Issue a book to a user
 router.post('/admin/issue', authenticateToken, requireLibrarian, async (req, res) => {
   try {
-
-    
     const { userId, bookId } = req.body;
-
     // Find an available copy of the book
     const copyQuery = `
       SELECT id FROM book_copies
